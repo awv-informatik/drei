@@ -218,8 +218,12 @@ export const AxisRotator: React.FC<{ dir1: THREE.Vector3; dir2: THREE.Vector3; a
           ref={divRef}
         />
       </Html>
+      {/* The invisible mesh being raycast */}
+      <Line points={arc} lineWidth={lineWidth * 4} visible={false} userData={userData} />
+      {/* The visible mesh */}
       <Line
         transparent
+        raycast={() => null}
         depthTest={depthTest}
         points={arc}
         lineWidth={lineWidth}
@@ -227,7 +231,6 @@ export const AxisRotator: React.FC<{ dir1: THREE.Vector3; dir2: THREE.Vector3; a
         opacity={opacity}
         polygonOffset
         polygonOffsetFactor={-10}
-        userData={userData}
       />
     </group>
   )

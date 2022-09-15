@@ -40,7 +40,6 @@ The `native` route of the library **does not** export `Html` or `Loader`. The de
         </ul>
         <li><a href="#controls">Controls</a></li>
         <ul>
-          <li><a href="#controls">Controls</a></li>
           <li><a href="#controls">FlyControls</a></li>
           <li><a href="#controls">MapControls</a></li>
           <li><a href="#controls">DeviceOrientationControls</a></li>
@@ -81,6 +80,7 @@ The `native` route of the library **does not** export `Html` or `Loader`. The de
           <li><a href="#meshreflectormaterial">MeshReflectorMaterial</a></li>
           <li><a href="#meshwobblematerial">MeshWobbleMaterial</a></li>
           <li><a href="#meshdistortmaterial">MeshDistortMaterial</a></li>
+          <li><a href="#meshrefractionmaterial">MeshRefractionMaterial</a></li>
           <li><a href="#pointmaterial">PointMaterial</a></li>
           <li><a href="#softshadows">softShadows</a></li>
           <li><a href="#shadermaterial">shaderMaterial</a></li>
@@ -120,6 +120,7 @@ The `native` route of the library **does not** export `Html` or `Loader`. The de
           <li><a href="#usetexture">useTexture</a></li>
           <li><a href="#usektx2">useKTX2</a></li>
           <li><a href="#usecubetexture">useCubeTexture</a></li>
+          <li><a href="#usevideotexture">useVideoTexture</a></li>          
         </ul>
         <li><a href="#performance">Performance</a></li>
         <ul>
@@ -245,12 +246,31 @@ A responsive [THREE.OrthographicCamera](https://threejs.org/docs/#api/en/cameras
 
 A [THREE.CubeCamera](https://threejs.org/docs/#api/en/cameras/CubeCamera) that returns its texture as a render-prop. It makes children invisible while rendering to the internal buffer so that they are not included in the reflection.
 
+```tsx
+type Props = JSX.IntrinsicElements['group'] & {
+  /** Number of frames to render, Infinity */
+  frames?: number
+  /** Resolution of the FBO, 256 */
+  resolution?: number
+  /** Camera near, 0.1 */
+  near?: number
+  /** Camera far, 1000 */
+  far?: number
+  /** Custom environment map that is temporarily set as the scenes background */
+  envMap?: THREE.Texture
+  /** Custom fog that is temporarily set as the scenes fog */
+  fog?: Fog | FogExp2
+  /** The contents of CubeCamera will be hidden when filming the cube */
+  children: (tex: Texture) => React.ReactNode
+}
+```
+
 Using the `frames` prop you can control if this camera renders indefinitively or statically (a given number of times).
 If you have two static objects in the scene, make it `frames={2}` for instance, so that both objects get to "see" one another in the reflections, which takes multiple renders.
 If you have moving objects, unset the prop and use a smaller `resolution` instead.
 
 ```jsx
-<CubeCamera resolution={256} frames={Infinity} fog={customFog} near={1} far={1000}>
+<CubeCamera>
   {(texture) => (
     <mesh>
       <sphereGeometry />
@@ -1139,6 +1159,54 @@ This material makes your geometry distort following simplex noise.
 </mesh>
 ```
 
+#### MeshRefractionMaterial
+
+<p>
+  <a href="https://codesandbox.io/s/zqrreo"><img width="20%" src="https://codesandbox.io/api/v1/sandboxes/zqrreo/screenshot.png" alt="Demo"/></a>
+</p>
+
+A convincing Glass/Diamond refraction material.
+
+```tsx
+type MeshRefractionMaterialProps = JSX.IntrinsicElements['shaderMaterial'] & {
+  /** Environment map */
+  envMap: THREE.CubeTexture | THREE.Texture
+  /** Number of ray-cast bounces, it can be expensive to have too many, 2 */
+  bounces?: number
+  /** Refraction index, 2.4 */
+  ior?: number
+  /** Fresnel (strip light), 0 */
+  fresnel?: number
+  /** RGB shift intensity, can be expensive, 0 */
+  aberrationStrength?: number
+  /** Color, white */
+  color?: ReactThreeFiber.Color
+  /** If this is on it uses fewer ray casts for the RGB shift sacrificing physical accuracy, true */
+  fastChroma?: boolean
+}
+```
+
+If you want it to reflect other objects in the scene you best pair it with a cube-camera.
+
+```jsx
+<CubeCamera>
+  {(texture) => (
+    <mesh geometry={diamondGeometry} {...props}>
+      <RefractionMaterial envMap={texture} />
+    </mesh>
+  )}
+</CubeCamera>
+```
+
+Otherwise just pass it an environment map.
+
+```jsx
+const texture = useLoader(RGBELoader, "/textures/royal_esplanade_1k.hdr")
+return (
+  <mesh geometry={diamondGeometry} {...props}>
+    <RefractionMaterial envMap={texture} />
+```
+
 #### PointMaterial
 
 <p>
@@ -1726,6 +1794,41 @@ A convenience hook that uses `useLoader` and `CubeTextureLoader`
 
 ```jsx
 const envMap = useCubeTexture(['px.png', 'nx.png', 'py.png', 'ny.png', 'pz.png', 'nz.png'], { path: 'cube/' })
+```
+
+#### useVideoTexture
+
+<p>
+  <a href="https://codesandbox.io/s/39hg8"><img width="20%" src="https://codesandbox.io/api/v1/sandboxes/39hg8/screenshot.png" alt="Demo"/></a>
+</p>
+
+A convenience hook that returns a `THREE.VideoTexture` and integrates loading into suspense. By default it falls back until the `canplay` event. Then it starts playing the video, which, if the video is muted, is allowed in the browser without user interaction.
+
+```tsx
+type VideoTextureProps = {
+  unsuspend?: 'canplay' | 'canplaythrough'
+  muted?: boolean
+  loop?: boolean
+  start?: boolean
+  crossOrigin?: string
+}
+
+export function useVideoTexture(src: string, props: VideoTextureProps) {
+  const { unsuspend, start, crossOrigin, muted, loop } = {
+    unsuspend: 'canplay',
+    crossOrigin: 'Anonymous',
+    muted: true,
+    loop: true,
+    start: true
+    ...props,
+  }
+```
+
+```jsx
+const texture = useVideoTexture("/video.mp4")
+return (
+  <mesh>
+    <meshBasicMaterial map={texture} toneMapped={false} />
 ```
 
 # Performance
